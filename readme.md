@@ -1,6 +1,6 @@
-# Em: 
+# Em
 
-A lab for experimenting with LLMs and appying different patterns such as Chain of Throught, Emotional Intelligence, Styles of memory, short term and longterm and even dreaming.
+A lab/playground for experimenting with LLMs and appying different patterns such as Chain of Throught, Emotional Intelligence, Styles of memory, short term and longterm and even dreaming.
 
 ## This is very much a wip! 
 
