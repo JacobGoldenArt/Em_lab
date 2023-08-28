@@ -1,7 +1,7 @@
-import logging, os
-from typing import Dict, Any
+from modules.base_llm import BaseLLM
 import openai
 import dotenv
+import os
 
 # Load the .env file
 dotenv.load_dotenv()
@@ -9,39 +9,53 @@ dotenv.load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
-class OpenAI_API:
+class OpenAPI(BaseLLM):
+    def __init__(self, *args, **kwargs):
+        print(f"Debug: args in OpenAPI init: {args}")  # Debugging line
+        print(f"Debug: kwargs in OpenAPI init: {kwargs}")  # Debugging line
+        super(OpenAPI, self).__init__(*args, **kwargs)
 
-    """LLM API Wrappers (e.g., OpenAI, Llama, Anthropic): These modules can be designed to accept a 'context' or 'history' parameter that they then include in their API calls. They shouldn't know where the history comes from; they should just use what they're given to make a more informed API call."""
+    def format_prompt(self, input_text, recent_turns):
+        print(f"Debug: recent_turns: {recent_turns}")  # Debugging line
+        formatted_turns = ""
+        if recent_turns:
+            for turn in recent_turns:
+                formatted_turns += f"user: {turn.get('user', 'Missing User')}\nassistant: {turn.get('assistant', 'Missing Assistant')}\n"
+        else:
+            print("Warning: recent_turns is empty or None")
 
-    def process(self, data: Dict[str, Any], **aux) -> Dict[str, Any]:
-        logging.info(f"Processing LLM Data: {data}")
+        formatted_turns += f"user: {input_text}"
+        print(f"Debug: formatted_turns: {formatted_turns}")  # Debugging line
+        return formatted_turns
 
-        lobby_data = data.get("lobby_data", {})
-        context = lobby_data.get("context", "No Context")
-        llm_settings = aux.get("llm_settings", {})
-        sys_personality = lobby_data.get("personalization_settings", {}).get(
-            "ai_personality", "Default Personality"
-        )
-
-        print(context, llm_settings["model"], sys_personality)
-
-        logging.info(f"Sending request to OpenAI API...")
-        # Here would be the actual API call, which is omitted for now.
-
-        # Create the messages list for the OpenAI API call
+    def get_completion(self, input_text, recent_turns):
+        print(f"Debug: input_text in get_completion: {input_text}")
+        formatted_prompt = self.format_prompt(input_text, recent_turns)
+        print(f"Formated Prompt {formatted_prompt}")
         completion = openai.ChatCompletion.create(
-            model=llm_settings["model"],
-            messages=[
-                {"role": "system", "content": sys_personality},
-                {"role": "user", "content": context},
-            ],
-            temperature=llm_settings["temperature"],
-            max_tokens=llm_settings["max_tokens"],
+            model=self.model,
+            messages=formatted_prompt,
+            max_tokens=self.max_tokens,
+            n=1,
+            stop=None,
+            temperature=self.temperature,
+            top_p=self.top_p,
+            frequency_penalty=self.frequency_penalty,
+            presence_penalty=self.presence_penalty,
         )
+        return completion["choices"][0]["text"].strip()
 
-        logging.info(f"\n{self.__class__.__name__}.Completion Data: {completion}\n")
+    def process(self, data, **aux):
+        print(f"Debug: Data received in OpenAPI: {data}")  # Debugging line
+        print(f"Debug: Aux received in OpenAPI: {aux}")  # Debugging line
 
-        # Return a dictionary with the OpenAI response
-        return {
-            "response": completion.choices[0].message["content"],
-        }
+        input_text = data.get("input_text")
+        recent_turns = data.get("recent_turns", [])
+
+        if not input_text:
+            print("Warning: input_text is empty or None")  # Debugging line
+
+        response = self.get_completion(input_text, recent_turns)
+        data["response"] = response
+
+        return data
